@@ -1,85 +1,85 @@
-import type { GameState } from '../../types';
-import { MACHINE_DEFINITIONS } from '../../config/machines';
+import type { MachineViewModel } from '../../types';
 
 interface Props {
-  state: GameState;
+  machines: MachineViewModel[];
   onBuy: (machineId: string) => void;
+  onToggle: (machineId: string) => void;
 }
 
-export function MachinePanel({ state, onBuy }: Props) {
-  const visible = MACHINE_DEFINITIONS.filter(
-    (def) => !def.unlockId || state.unlocks[def.unlockId],
-  );
-
-  function canAfford(machineId: string): boolean {
-    const def = MACHINE_DEFINITIONS.find((m) => m.id === machineId)!;
-    return def.baseCost.every(
-      (cost) =>
-        (state.resources[cost.resourceId]?.amount ?? 0) >= cost.amount,
-    );
-  }
-
-  function resourceLabel(id: string): string {
-    return id.replace(/_/g, ' ');
-  }
+export function MachinePanel({ machines, onBuy, onToggle }: Props) {
 
   return (
     <section className="panel machine-panel">
       <h2>⚙ Machines</h2>
-      {visible.length === 0 ? (
+      {machines.length === 0 ? (
         <p className="empty">
           No machines available yet — gather more resources!
         </p>
       ) : (
         <ul className="machine-list">
-          {visible.map((def) => {
-            const ms = state.machines[def.id];
-            const affordable = canAfford(def.id);
-            const maxed = ms.count >= def.maxCount;
+          {machines.map((machine) => {
+            const maxed = machine.count >= machine.maxCount;
 
             return (
-              <li key={def.id} className={`machine-item${maxed ? ' maxed' : ''}`}>
+              <li key={machine.id} className={`machine-item${maxed ? ' maxed' : ''}${machine.canRun ? ' running' : ''}`}>
                 <div className="machine-header">
-                  <strong className="machine-name">{def.name}</strong>
+                  <strong className="machine-name">{machine.name}</strong>
                   <span className="machine-count">
-                    {ms.count}&thinsp;/&thinsp;{def.maxCount}
+                    {machine.count}&thinsp;/&thinsp;{machine.maxCount}
                   </span>
                 </div>
 
-                <p className="machine-desc">{def.description}</p>
+                <p className="machine-desc">{machine.description}</p>
 
                 <div className="machine-io">
-                  {def.inputs.length > 0 && (
+                  {machine.inputsLabel && (
                     <span className="machine-inputs">
                       ▼&thinsp;
-                      {def.inputs
-                        .map((i) => `${i.amount}× ${resourceLabel(i.resourceId)}`)
-                        .join(', ')}
+                      {machine.inputsLabel}
                     </span>
                   )}
-                  {def.outputs.length > 0 && (
+                  {machine.outputsLabel && (
                     <span className="machine-outputs">
                       ▲&thinsp;
-                      {def.outputs
-                        .map((o) => `${o.amount}× ${resourceLabel(o.resourceId)}`)
-                        .join(', ')}
+                      {machine.outputsLabel}
                     </span>
                   )}
                 </div>
 
                 <div className="machine-cost">
                   Cost:&thinsp;
-                  {def.baseCost
-                    .map((c) => `${c.amount}× ${resourceLabel(c.resourceId)}`)
-                    .join(', ')}
+                  {machine.costLabel}
                 </div>
 
+                {machine.count > 0 && (
+                  <div className="machine-status">
+                    <div className="machine-efficiency">
+                      Per tick:&thinsp;{machine.efficiencyLabel}
+                    </div>
+                    <div className="machine-controls">
+                      <button
+                        className={`toggle-btn${machine.active ? ' active' : ''}`}
+                        onClick={() => onToggle(machine.id)}
+                        title={machine.active ? 'Click to disable' : 'Click to enable'}
+                      >
+                        {machine.active ? '🟢' : '🔴'}
+                      </button>
+                      {machine.canRun && (
+                        <span className="status running-badge">● Running</span>
+                      )}
+                      {machine.active && !machine.canRun && machine.count > 0 && (
+                        <span className="status blocked-badge">⊗ Blocked</span>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 <button
-                  className={`buy-btn${affordable && !maxed ? ' can-afford' : ''}`}
-                  onClick={() => onBuy(def.id)}
-                  disabled={!affordable || maxed}
+                  className={`buy-btn${machine.affordable && !maxed ? ' can-afford' : ''}`}
+                  onClick={() => onBuy(machine.id)}
+                  disabled={!machine.affordable || maxed}
                 >
-                  {maxed ? '✔ Max' : affordable ? '🔧 Buy' : '⛔ Insufficient'}
+                  {maxed ? '✔ Max' : machine.affordable ? '🔧 Buy' : '⛔ Insufficient'}
                 </button>
               </li>
             );

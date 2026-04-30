@@ -3,14 +3,10 @@ import type { GameState } from '../types';
 import { createInitialState } from '../engine/gameState';
 import { createGameLoop } from '../engine/gameLoop';
 import {
-  loadGame,
-  saveGame,
   deleteSave,
+  loadGame,
   migrateState,
 } from '../engine/systems/persistenceSystem';
-import { purchaseMachine } from '../engine/systems/machineSystem';
-import { addEvent } from '../engine/systems/eventLogSystem';
-import { MACHINE_DEFINITIONS } from '../config/machines';
 
 /**
  * Central React hook that owns the game state and wires up the game loop.
@@ -18,8 +14,14 @@ import { MACHINE_DEFINITIONS } from '../config/machines';
  */
 export function useGameState() {
   const [state, setState] = useState<GameState>(() => {
-    const saved = loadGame();
-    return saved ? migrateState(saved) : createInitialState();
+    try {
+      const saved = loadGame();
+      return saved ? migrateState(saved) : createInitialState();
+    } catch (error) {
+      console.error('[GameState] Failed to initialize from save, resetting.', error);
+      deleteSave();
+      return createInitialState();
+    }
   });
 
   // Keep a ref so the loop closure always reads the latest state without
@@ -39,29 +41,37 @@ export function useGameState() {
     return () => loop.stop();
   }, []);
 
-  /** Purchase one unit of a machine. */
+  /** Queue a machine purchase action (processed in tick loop). */
   const buyMachine = useCallback((machineId: string) => {
-    setState((prev) => {
-      const next: GameState = JSON.parse(JSON.stringify(prev));
-      const success = purchaseMachine(next, machineId);
-      if (success) {
-        const def = MACHINE_DEFINITIONS.find((m) => m.id === machineId);
-        addEvent(next, `🔧 Purchased: ${def?.name ?? machineId}`, 'info');
-      }
-      return next;
-    });
+    setState((prev) => ({
+      ...prev,
+      pendingActions: [...prev.pendingActions, { type: 'buy_machine', machineId }],
+    }));
   }, []);
 
-  /** Manually save the game. */
+  /** Queue a machine toggle action (processed in tick loop). */
+  const toggleMachineState = useCallback((machineId: string) => {
+    setState((prev) => ({
+      ...prev,
+      pendingActions: [...prev.pendingActions, { type: 'toggle_machine', machineId }],
+    }));
+  }, []);
+
+  /** Queue a manual save action (processed in tick loop). */
   const save = useCallback(() => {
-    setState((prev) => saveGame(prev));
+    setState((prev) => ({
+      ...prev,
+      pendingActions: [...prev.pendingActions, { type: 'manual_save' }],
+    }));
   }, []);
 
-  /** Wipe save data and restart from scratch. */
+  /** Queue a full reset action (processed in tick loop). */
   const resetGame = useCallback(() => {
-    deleteSave();
-    setState(createInitialState());
+    setState((prev) => ({
+      ...prev,
+      pendingActions: [...prev.pendingActions, { type: 'reset_game' }],
+    }));
   }, []);
 
-  return { state, buyMachine, save, resetGame };
+  return { state, buyMachine, toggleMachineState, save, resetGame };
 }

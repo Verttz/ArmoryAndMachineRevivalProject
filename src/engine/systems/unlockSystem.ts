@@ -1,35 +1,29 @@
 import type { GameState } from '../../types';
 import { UNLOCK_DEFINITIONS } from '../../config/unlocks';
 import { addEvent } from './eventLogSystem';
+import { areConditionsMet } from './unlockUtils';
 
 /**
  * Unlock system — runs each tick.
- * Evaluates all unlock conditions and fires events when they first become true.
+ * 
+ * Process:
+ * 1. Evaluates all conditions for each locked unlock
+ * 2. Unlocks conditions are AND logic (all must be true)
+ * 3. Supports: resource thresholds, machine ownership, time elapsed, always-true
+ * 4. Fires achievement events when unlocks trigger
+ * 
+ * Unlocks gate:
+ * - New machines (from machineSystem checks unlockId)
+ * - New resources (from resourceSystem checks unlockId)
+ * - UI elements (components can check state.unlocks map)
  */
 export function updateUnlocks(state: GameState): void {
   for (const def of UNLOCK_DEFINITIONS) {
-    if (state.unlocks[def.id]) continue; // already unlocked
+    // Skip already unlocked items
+    if (state.unlocks[def.id]) continue;
 
-    const allMet = def.conditions.every((condition) => {
-      switch (condition.type) {
-        case 'resource_gte':
-          return (
-            (state.resources[condition.resourceId!]?.amount ?? 0) >=
-            condition.value!
-          );
-        case 'machine_count_gte':
-          return (
-            (state.machines[condition.machineId!]?.count ?? 0) >=
-            condition.value!
-          );
-        case 'always':
-          return true;
-        default:
-          return false;
-      }
-    });
-
-    if (allMet) {
+    // Check if all conditions are met using utility function
+    if (areConditionsMet(def, state)) {
       state.unlocks[def.id] = true;
       addEvent(
         state,
@@ -39,3 +33,4 @@ export function updateUnlocks(state: GameState): void {
     }
   }
 }
+

@@ -2,6 +2,9 @@ import type { GameState } from '../types';
 import { updateResources } from './systems/resourceSystem';
 import { updateMachines } from './systems/machineSystem';
 import { updateUnlocks } from './systems/unlockSystem';
+import { updateNarratives } from './systems/narrativeSystem';
+import { processPendingActions } from './systems/actionSystem';
+import { updateUIState } from './systems/uiStateSystem';
 import { saveGame } from './systems/persistenceSystem';
 
 /** Fixed ticks per second for the game loop. */
@@ -18,11 +21,14 @@ export function runTick(state: GameState): GameState {
   // Deep-clone so downstream mutations don't affect the previous snapshot
   const next: GameState = JSON.parse(JSON.stringify(state));
 
+  processPendingActions(next);
   next.tick += 1;
 
   updateMachines(next);
   updateResources(next);
   updateUnlocks(next);
+  updateNarratives(next);
+  updateUIState(next);
 
   if (next.tick % AUTO_SAVE_INTERVAL === 0) {
     return saveGame(next);

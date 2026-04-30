@@ -1,31 +1,23 @@
-import type { ResourceStateMap, UnlockStateMap } from '../../types';
-import { RESOURCE_DEFINITIONS } from '../../config/resources';
+import type { ResourceViewModel } from '../../types';
 
 interface Props {
-  resources: ResourceStateMap;
-  unlocks: UnlockStateMap;
+  resources: ResourceViewModel[];
 }
 
-export function ResourceDisplay({ resources, unlocks }: Props) {
-  const visible = RESOURCE_DEFINITIONS.filter(
-    (def) => !def.unlockId || unlocks[def.unlockId],
-  );
+export function ResourceDisplay({ resources }: Props) {
 
   return (
     <section className="panel resource-panel">
       <h2>⛏ Resources</h2>
-      {visible.length === 0 ? (
+      {resources.length === 0 ? (
         <p className="empty">No resources available yet.</p>
       ) : (
         <ul className="resource-list">
-          {visible.map((def) => {
-            const res = resources[def.id];
-            const pct =
-              res.cap === -1 ? 0 : Math.min((res.amount / res.cap) * 100, 100);
+          {resources.map((res) => {
             return (
-              <li key={def.id} className="resource-item">
+              <li key={res.id} className="resource-item">
                 <div className="resource-header">
-                  <span className="resource-name">{def.name}</span>
+                  <span className="resource-name">{res.name}</span>
                   <span className="resource-amount">
                     {Math.floor(res.amount)}&thinsp;/&thinsp;
                     {res.cap === -1 ? '∞' : res.cap}
@@ -40,7 +32,7 @@ export function ResourceDisplay({ resources, unlocks }: Props) {
                 >
                   <div
                     className="resource-bar-fill"
-                    style={{ width: res.cap === -1 ? '100%' : `${pct}%` }}
+                    style={{ width: `${res.fillPercent}%` }}
                   />
                 </div>
                 {res.rate > 0 && (

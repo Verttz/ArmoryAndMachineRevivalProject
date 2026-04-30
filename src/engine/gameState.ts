@@ -1,7 +1,9 @@
-import type { GameState, ResourceStateMap, MachineStateMap, UnlockStateMap } from '../types';
+import type { GameState, ResourceStateMap, MachineStateMap, UnlockStateMap, NarrativeShownMap } from '../types';
 import { RESOURCE_DEFINITIONS } from '../config/resources';
 import { MACHINE_DEFINITIONS } from '../config/machines';
 import { UNLOCK_DEFINITIONS } from '../config/unlocks';
+import { createEmptyUIState } from './systems/uiStateSystem';
+import { updateUIState } from './systems/uiStateSystem';
 
 /** Build the initial (fresh-start) game state from config. */
 export function createInitialState(): GameState {
@@ -24,12 +26,21 @@ export function createInitialState(): GameState {
     unlocks[def.id] = false;
   }
 
-  return {
+  const narrativesShown: NarrativeShownMap = {};
+
+  const state: GameState = {
     tick: 0,
     resources,
     machines,
     unlocks,
+    pendingActions: [],
     eventLog: [],
+    narrativeLog: [],
+    ui: createEmptyUIState(),
+    narrativesShown,
     lastSaved: null,
   };
+
+  updateUIState(state);
+  return state;
 }
